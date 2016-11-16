@@ -1,0 +1,214 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "deploymentPrefix":{
+      "type": "string",
+      "defaultValue": "d_",
+      "metadata": {
+        "description": ""
+      }
+    },
+    "storageAccountType": {
+      "type": "string",
+      "defaultValue": "Standard_LRS",
+      "allowedValues": [
+        "Standard_LRS",
+        "Premium_LRS"
+      ],
+      "metadata": {
+        "description": "With Standard_LRS as default two Storage account Types Standard_LRS and Premium_LRS available."
+      }
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_A1",
+      "allowedValues": [
+        "Standard_A1",
+        "Standard_A2",
+        "Standard_A3"
+      ],
+      "metadata": {
+        "description": "VM Size, for standard VMs for this test."
+      }
+    },
+    "vmSizeDataDisks": {
+      "type": "int",
+      "defaultValue": 10,
+      "metadata": {
+        "description": "Data disks Size in GBs"
+      }
+    },
+    "numberOfVms": {
+      "type": "int",
+      "defaultValue": 2,
+      "metadata": {
+        "description": "Number of VMs. Create 2 VMs as App/Web-servers"
+      }
+    },
+    "imageReference": {
+      "type": "object",
+      "metadata": {
+        "description": "Image to boot vms from"
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "Admin user name"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Admin password"
+      }
+    },
+    "serversRole": {
+      "type": "string",
+      "defaultValue": "Generic",
+      "metadata": {
+        "description": "Servers role, for instance webtier, database.A tag will be created with the provided value"
+      }
+    },
+    "serversPurpose": {
+      "type": "string",
+      "defaultValue": "DEV",
+      "metadata": {
+        "description": "Servers purpose, for instance development, test, pre-production, production. A tag will be created with the provided value"
+      }
+    },
+    "sshKeyData": {
+      "type": "securestring",
+      "metadata": {
+        "description": "ssh public key for the admin user"
+      }
+    },
+    "sshStorageAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Private storage account name in which you are storing your ssh certificates"
+      }
+    },
+    "sshStorageAccountKey": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Private storage account key in which you are storing your ssh certificates"
+      }
+    },
+    "dnsLabelPrefix": {
+      "type": "string",
+      "metadata": {
+        "description": "DNS Label for the Public IP. Must be lowercase. It should match with the following regular expression: ^[a-z][a-z0-9-]{1,61}[a-z0-9]$ or it will raise an error."
+      }
+
+    },
+    "publicIPType": {
+      "type": "string",
+      "allowedValues": [
+        "Static",
+        "Dynamic"
+      ],
+      "defaultValue": "Dynamic",
+      "metadata": {
+        "description": "Public facing IP Type."
+      }
+    }
+  },
+
+  "variables": {
+    "scriptsBaseUrl": ".",
+    "apiVersion": "2015-06-15",
+    "vmStorageAccountContainerName": "vhds",
+    "availabilitySetName": "AS_01",
+    "faultDomainCount": "3",
+    "updateDomainCount": "5",
+
+    "virtualNetworkName": "VNet01",
+    "addressPrefix": "10.0.0.0/16",
+    "subnet1Name": "FrontEnd",
+    "subnet2Name": "Backend",
+    "subnet1Prefix": "10.0.1.0/24",
+    "subnet2Prefix": "10.0.2.0/24",
+    "publicIPName": "VIP01",
+
+    "vmNamePattern": "WebServ-",
+    "VMIPAddressStart": "10.0.2.2",
+    "vmNICNamePattern": "WebServNIC-",
+
+    "sshNatRuleFrontEndPort": "6400",
+    "sshNatRuleBackEndPort": "22",
+    "publicIPRef": "[resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPName'))]",
+    "NICipconfig": "ipCnfgBE",
+    "NICRef": "[resourceId('Microsoft.Network/networkInterfaces',variables('vmNICNamePattern'))]",
+    "DNSNameLB": "[concat(parameters('dnsLabelPrefix'))]",
+    "vnetRef": "[resourceId('Microsoft.Network/virtualNetworks',variables('virtualNetworkName'))]",
+    "subnetBackEndRef": "[concat(variables('vnetRef'),'/subnets/',variables('subnet2Name'))]",
+    "FrontEndRef": "[concat(variables('vnetRef'),'/subnets/',variables('subnet1Name'))]",
+
+    "loadBalancerName": "AzurePLB",
+    "loadBalancerRef": "[resourceId('Microsoft.Network/loadBalancers',variables('loadBalancerName'))]",
+    "lbRuleName": "ALlbRule",
+    "lbRuleRef": "[concat(variables('loadBalancerRef'),'/loadBalancingRules/',variables('lbRuleName'))]",
+    "lbFEConfig": "LBAnsFrontConfg",
+    "lbFEConfigRef": "[concat(variables('loadBalancerRef'),'/frontendIPConfigurations/',variables('lbFEConfig'))]",
+    "lbBEConfig": "[concat('LBBEAnsFrontConfg')]",
+    "lbBEConfigRef": "[concat(variables('loadBalancerRef'),'/backendAddressPools/' ,variables('lbBEConfig'))]",
+    "sshKeyPath": "[concat('/home/',parameters('adminUsername'),'/.ssh/authorized_keys')]",
+
+    "sshRootCerBlobLocation": "id_rsa",
+    "sshRootPubBlobLocation": "id_rsa.pub",
+
+    "ansiblePlaybookLocation": "InitStorage_RAID.yml",
+    "customScriptAnsibleFile": "configure_ansible.sh",
+    "customScriptAnsibleUrl": "[concat(variables('scriptsBaseUrl'),variables('customScriptAnsibleFile'))]",
+    "customScriptAnsibleCommand": "[concat('bash ',variables('customScriptAnsibleFile'))]",
+
+    "customScriptSSHRootFile": "configure_ssh_root.sh",
+    "customScriptSSHRootUrl": "[concat(variables('scriptsBaseUrl'),variables('customScriptSSHRootFile'))]",
+    "customScriptSSHRootCommand": "[concat('bash ',variables('customScriptSSHRootFile'),' -a ', parameters('sshStorageAccountName'),' -k ', parameters('sshStorageAccountKey'))]",
+    "ansiblePlaybookUrl": "[concat(variables('scriptsBaseUrl'),variables('ansiblePlaybookLocation'))]",
+    "pythonAzureScriptUrl": "[concat(variables('scriptsBaseUrl'),'GetSSHFromPrivateStorageAccount.py')]",
+    "ansibleVmTypes": {
+      "Premium_LRS": {
+        "vmSize": "Standard_DS1"
+      },
+      "Standard_LRS": {
+        "vmSize": "Standard_A1"
+      }
+    },
+    "currentEnvironmentSettings": "[variables('ansibleVmTypes')[parameters('storageAccountType')]]",
+    "ansibleVmType": "[variables('currentEnvironmentSettings').vmSize]",
+    "newStorageAccountName": "[concat(uniquestring(resourceGroup().id), 'stg')]",
+    "storageRef": "[concat('Microsoft.Storage/storageAccounts/', variables('newStorageAccountName'))]"
+  },
+
+  "resources":[
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "test",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "[variables('apiVersion')]",
+
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('scriptsBaseUrl'),'/shared_resources/deploy.json')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "apiVersion":{ "value":"[parameters('apiVersion')]" },
+          "deploymentPrefix":{ "value":"[parameters('deploymentPrefix')]" },
+          "frontEndSubnetNamePrefix":{ "value":"[parameters('frontEndSubnetNamePrefix')]" },
+          "backEndSubnetNamePrefix":{ "value":"[parameters('backEndSubnetNamePrefix')]" },
+          "availabilitySetName":{ "value":"[parameters('availabilitySetName')]" },
+          "virtualNetworkName":{ "value":"[parameters('virtualNetworkName')]" },
+          "addressPrefix":{ "value":"[parameters('addressPrefix')]" },
+          "storageAccountType":{ "value":"[parameters('storageAccountType')]" },
+          "dnsLabelPrefix":{ "value":"[parameters('dnsLabelPrefix')]" }
+          }
+        }
+      }
+  ],
+  "outputs":{}
+}
