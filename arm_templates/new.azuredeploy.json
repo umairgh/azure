@@ -117,7 +117,7 @@
   },
 
   "variables": {
-    "scriptsBaseUrl": ".",
+    "baseUrl": "https://raw.githubusercontent.com/umairgh/azure/master/arm_templates/",
     "apiVersion": "2015-06-15",
     "vmStorageAccountContainerName": "vhds",
     "availabilitySetName": "AS_01",
@@ -161,14 +161,14 @@
 
     "ansiblePlaybookLocation": "InitStorage_RAID.yml",
     "customScriptAnsibleFile": "configure_ansible.sh",
-    "customScriptAnsibleUrl": "[concat(variables('scriptsBaseUrl'),variables('customScriptAnsibleFile'))]",
+    "customScriptAnsibleUrl": "[concat(variables('baseUrl'),variables('customScriptAnsibleFile'))]",
     "customScriptAnsibleCommand": "[concat('bash ',variables('customScriptAnsibleFile'))]",
 
     "customScriptSSHRootFile": "configure_ssh_root.sh",
-    "customScriptSSHRootUrl": "[concat(variables('scriptsBaseUrl'),variables('customScriptSSHRootFile'))]",
+    "customScriptSSHRootUrl": "[concat(variables('baseUrl'),variables('customScriptSSHRootFile'))]",
     "customScriptSSHRootCommand": "[concat('bash ',variables('customScriptSSHRootFile'),' -a ', parameters('sshStorageAccountName'),' -k ', parameters('sshStorageAccountKey'))]",
-    "ansiblePlaybookUrl": "[concat(variables('scriptsBaseUrl'),variables('ansiblePlaybookLocation'))]",
-    "pythonAzureScriptUrl": "[concat(variables('scriptsBaseUrl'),'GetSSHFromPrivateStorageAccount.py')]",
+    "ansiblePlaybookUrl": "[concat(variables('baseUrl'),variables('ansiblePlaybookLocation'))]",
+    "pythonAzureScriptUrl": "[concat(variables('baseUrl'),'GetSSHFromPrivateStorageAccount.py')]",
     "ansibleVmTypes": {
       "Premium_LRS": {
         "vmSize": "Standard_DS1"
@@ -186,14 +186,14 @@
   "resources":[
     {
       "type": "Microsoft.Resources/deployments",
-      "name": "test",
+      "name": "[variables('virtualNetworkName')]",
       "location": "[resourceGroup().location]",
       "apiVersion": "[variables('apiVersion')]",
 
       "properties": {
         "mode": "Incremental",
         "templateLink": {
-          "uri": "[concat(variables('scriptsBaseUrl'),'/shared_resources/deploy.json')]",
+          "uri": "[concat(variables('baseUrl'),'/shared_resources/deploy.json')]",
           "contentVersion": "1.0.0.0"
         },
         "parameters": {
