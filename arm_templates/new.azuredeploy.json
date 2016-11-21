@@ -193,7 +193,7 @@
       "properties": {
         "mode": "Incremental",
         "templateLink": {
-          "uri": "[concat(variables('baseUrl'),'/shared_resources/deploy.json')]",
+          "uri": "[https://raw.githubusercontent.com/umairgh/azure/master/arm_templates/shared_resources/deploy.json",
           "contentVersion": "1.0.0.0"
         },
         "parameters": {

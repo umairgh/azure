@@ -13,7 +13,7 @@
     },
     "deploymentPrefix":{
       "type": "string",
-      "defaultValue": "p_",
+      "defaultValue": "sd_",
       "metadata": {
         "description": ""
       }
